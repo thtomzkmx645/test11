@@ -1,4 +1,25 @@
 (() => {
+  const getTopLocation = () => {
+    try {
+      return window.top?.location ?? window.location
+    } catch {
+      return window.location
+    }
+  }
+
+  const getAppBase = () => getTopLocation().pathname.replace(/[^/]*$/, '')
+  const normalizeRoute = (route) => (route.startsWith('/') ? route : `/${route}`)
+  const getCurrentRoute = () => {
+    const hashRoute = getTopLocation().hash.replace(/^#/, '')
+    if (hashRoute) {
+      return normalizeRoute(hashRoute)
+    }
+
+    return '/'
+  }
+
+  const buildAppHref = (route) => `${getAppBase()}#${normalizeRoute(route)}`
+
   const routeForLabel = {
     首页: '/',
     学习路径: '/learning-path',
@@ -57,23 +78,25 @@
   }
 
   const navigateTop = (href) => {
+    const targetHref = buildAppHref(href)
+
     if (!href || window.top === window) {
-      window.location.href = href
+      window.location.href = targetHref
       return
     }
 
-    window.top.location.href = href
+    window.top.location.href = targetHref
   }
 
   const wireLinkLikeNode = (node, href) => {
     if (node.tagName === 'A') {
-      node.setAttribute('href', href)
+      node.setAttribute('href', buildAppHref(href))
       node.setAttribute('target', '_top')
       return
     }
 
     node.style.cursor = 'pointer'
-    node.addEventListener('click', () => navigateTop(href))
+    node.onclick = () => navigateTop(href)
   }
 
   const rewriteByText = () => {
@@ -87,7 +110,7 @@
       if (!href) continue
 
       if (node.tagName === 'BUTTON') {
-        node.addEventListener('click', () => navigateTop(href))
+        node.onclick = () => navigateTop(href)
         continue
       }
 
@@ -96,7 +119,7 @@
   }
 
   const markActiveNav = () => {
-    const currentPath = window.top?.location?.pathname || routeForCurrentPage[pageName] || '/'
+    const currentPath = getCurrentRoute() || routeForCurrentPage[pageName] || '/'
     const navNodes = Array.from(document.querySelectorAll('nav a, header a'))
 
     for (const node of navNodes) {
@@ -122,18 +145,18 @@
       const text = clean(node.textContent || '')
 
       if (text === '开始学习') {
-        node.addEventListener('click', () => navigateTop('/topic/linear'))
+        node.onclick = () => navigateTop('/topic/linear')
       }
 
       if (text === '查看演示') {
-        node.addEventListener('click', () => navigateTop('/practice/student-management'))
+        node.onclick = () => navigateTop('/practice/student-management')
       }
 
       if (text.includes('进入专题') || text.includes('进入练习') || text.includes('进入实验')) {
         const cardText = clean(node.parentElement?.textContent || '')
         const href = toRoute(cardText)
         if (href) {
-          node.addEventListener('click', () => navigateTop(href))
+          node.onclick = () => navigateTop(href)
         }
       }
 
@@ -141,7 +164,7 @@
         const cardText = clean(node.closest('div, article, section')?.textContent || '')
         const href = toRoute(cardText)
         if (href) {
-          node.addEventListener('click', () => navigateTop(href))
+          node.onclick = () => navigateTop(href)
         }
       }
     }
@@ -152,7 +175,7 @@
       return
     }
 
-    const topPath = window.top?.location?.pathname || '/'
+    const topPath = getCurrentRoute()
     const headingTargets = {
       '/learning-path': ['学习路径', '核心架构单元'],
       '/practice': ['继续探索', '核心架构单元'],
@@ -171,7 +194,7 @@
     const footerLinks = Array.from(document.querySelectorAll('footer a'))
     for (const node of footerLinks) {
       if ((node.getAttribute('href') || '#') !== '#') continue
-      node.setAttribute('href', '/')
+      node.setAttribute('href', buildAppHref('/'))
       node.setAttribute('target', '_top')
     }
   }
